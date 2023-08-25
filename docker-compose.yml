@@ -1,0 +1,104 @@
+version: "3"
+services:
+  # mdb:
+  #   image: mongo
+  #   # ports:
+  #   #   - "27017:27017"
+  #   container_name: mdb
+  #   volumes:
+  #     - ./db/:/data/db
+  mdb:
+    image: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: ms_customer,ms_product,ms_shopping,ms_payment
+    volumes:
+      # - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      # - ./init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh
+      - ./db/:/data/db
+
+  rabbitmq:
+    image: rabbitmq
+    ports:
+      - "5672:5672"
+
+  product:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./product
+    # container_name: product
+    # ports:
+    #   - "8002:8002"
+    restart: always
+    depends_on:
+      - "mdb"
+      - "rabbitmq"
+    volumes:
+      - .:/app
+      - /app/product/node_modules
+
+    env_file:
+      - ./product/.env.dev
+  shopping:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./shopping
+    # container_name: shopping
+    # ports:
+    #   - "8003:8003"
+    restart: always
+    depends_on:
+      - "mdb"
+      - "rabbitmq"
+    volumes:
+      - .:/app
+      - /app/shopping/node_modules
+    env_file:
+      - ./shopping/.env.dev
+  customer:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./customer
+    # container_name: customer
+    # ports:
+    #   - "8001:8001"
+    restart: always
+    depends_on:
+      - "mdb"
+      - "rabbitmq"
+    volumes:
+      - .:/app/
+      - /app/customer/node_modules
+    env_file:
+      - ./customer/.env.dev
+  payment:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./payment
+    # container_name: payment
+    # ports:
+    #   - "8004:8004"
+    restart: always
+    depends_on:
+      - "mdb"
+      - "rabbitmq"
+
+    volumes:
+      - .:/app/
+      - /app/payment/node_modules
+    env_file:
+      - ./payment/.env.dev
+  nginx-proxy:
+    build:
+      dockerfile: Dockerfile
+      context: ./proxy
+    depends_on:
+      - product
+      - shopping
+      - customer
+    ports:
+      - 80:80
